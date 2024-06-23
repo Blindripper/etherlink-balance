@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tezos Balance Tracker | Bridged to EtherLink</title>
+    <meta name="description" content="Track Tezos balance and USD value for a specific address, powered by EtherLink technology.">
+    <meta property="og:title" content="Tezos Balance Tracker">
+    <meta property="og:description" content="Track Tezos balance and USD value for a specific address, powered by EtherLink technology.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yourusername.github.io/tezos-balance-tracker/">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #111111;
+            color: #ffffff;
+        }
+        .container {
+            background-color: #1a1a1a;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        .balance-container {
+            background-color: #222222;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .balance-label {
+            font-size: 0.9rem;
+            color: #999999;
+            margin-bottom: 0.5rem;
+        }
+        .balance {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #00ff9d;
+            margin: 0;
+        }
+        #address {
+            font-size: 0.8rem;
+            color: #999999;
+            word-break: break-all;
+            margin-bottom: 1.5rem;
+        }
+        button {
+            background-color: #00ff9d;
+            color: #111111;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #00cc7d;
+        }
+        footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #666666;
+        }
+        footer a {
+            color: #00ff9d;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bridged to EtherLink</h1>
+        <p id="address">KT1CeFqjJRJPNVvhvznQrWfHad2jCiDZ6Lyj</p>
+        <div class="balance-container">
+            <p class="balance-label">XTZ Balance</p>
+            <p id="balanceXTZ" class="balance">Loading...</p>
+        </div>
+        <div class="balance-container">
+            <p class="balance-label">USD Value</p>
+            <p id="balanceUSD" class="balance">Loading...</p>
+        </div>
+        <button onclick="fetchBalanceAndConvert()">Refresh Balance</button>
+        <footer>
+            <p>View the <a href="https://github.com/yourusername/tezos-balance-tracker" target="_blank">source code on GitHub</a></p>
+        </footer>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script>
+        const accountAddress = 'KT1CeFqjJRJPNVvhvznQrWfHad2jCiDZ6Lyj';
+        const tzktApiUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}`;
+        const coingeckoApiUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tezos&vs_currencies=usd';
+
+        async function fetchBalanceAndConvert() {
+            try {
+                const [balanceResponse, rateResponse] = await Promise.all([
+                    axios.get(tzktApiUrl),
+                    axios.get(coingeckoApiUrl)
+                ]);
+
+                const balanceInMutez = balanceResponse.data.balance;
+                const balanceInTez = balanceInMutez / 1000000; // Convert mutez to tez
+                const xtzToUsdRate = rateResponse.data.tezos.usd;
+                const balanceInUsd = balanceInTez * xtzToUsdRate;
+
+                document.getElementById('balanceXTZ').textContent = balanceInTez.toFixed(6) + ' XTZ';
+                document.getElementById('balanceUSD').textContent = '$' + balanceInUsd.toFixed(2);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('balanceXTZ').textContent = 'Error';
+                document.getElementById('balanceUSD').textContent = 'Error';
+            }
+        }
+
+        // Fetch balance and convert on page load
+        fetchBalanceAndConvert();
+    </script>
+</body>
+</html>

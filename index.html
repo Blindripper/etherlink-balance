@@ -25,7 +25,7 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
-            max-width: 600px;
+            max-width: 800px;
             width: 90%;
         }
         h1, h2 {
@@ -91,6 +91,7 @@
             border-radius: 15px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
+            height: 400px;
         }
         #error-message {
             color: #ff4d4d;
@@ -115,7 +116,7 @@
             <a href="https://www.etherlink.com/" target="_blank" class="button button-secondary">Etherlink</a>
             <a href="https://bridge.etherlink.com/" target="_blank" class="button">Bridge</a>
         </div>
-        <h2>Last Inflows</h2>
+        <h2>Inflows (Last 2 Weeks)</h2>
         <div class="chart-container">
             <canvas id="inflowChart"></canvas>
         </div>
@@ -126,7 +127,13 @@
         const accountAddress = 'KT1CeFqjJRJPNVvhvznQrWfHad2jCiDZ6Lyj';
         const tzktApiUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}`;
         const coingeckoApiUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tezos&vs_currencies=usd';
-        const tzktTransactionsUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}/operations?type=transaction&limit=10`;
+        
+        function formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        const currentDate = new Date();
+        const tzktTransactionsUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}/operations?type=transaction&limit=1000&sort.desc=timestamp`;
 
         async function fetchBalanceAndConvert() {
             try {
@@ -147,17 +154,23 @@
                 document.getElementById('balanceXTZ').textContent = balanceInTez.toFixed(6) + ' XTZ';
                 document.getElementById('balanceUSD').textContent = '$' + balanceInUsd.toFixed(2);
 
-                // Process inflow data
-                const inflows = transactionsResponse.data
-                    .filter(tx => tx.amount > 0 && tx.target.address === accountAddress)
-                    .map(tx => ({
-                        date: new Date(tx.timestamp),
-                        amount: tx.amount / 1000000 // Convert mutez to XTZ
-                    }));
+                // Process and aggregate inflow data
+                const twoWeeksAgo = new Date(currentDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+                const inflowMap = new Map();
+                transactionsResponse.data
+                    .filter(tx => tx.amount > 0 && tx.target.address === accountAddress && new Date(tx.timestamp) >= twoWeeksAgo)
+                    .forEach(tx => {
+                        const date = formatDate(new Date(tx.timestamp));
+                        const amount = tx.amount / 1000000; // Convert mutez to XTZ
+                        inflowMap.set(date, (inflowMap.get(date) || 0) + amount);
+                    });
 
-                console.log('Inflows:', inflows);
+                const aggregatedInflows = Array.from(inflowMap, ([date, amount]) => ({ date, amount }))
+                    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest to newest
 
-                createInflowChart(inflows);
+                console.log('Aggregated Inflows:', aggregatedInflows);
+
+                createInflowChart(aggregatedInflows);
             } catch (error) {
                 console.error('Error fetching data:', error);
                 document.getElementById('balanceXTZ').textContent = 'Error';
@@ -173,24 +186,29 @@
                 ctx.font = '16px Inter';
                 ctx.fillStyle = '#ffffff';
                 ctx.textAlign = 'center';
-                ctx.fillText('No recent inflows found', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                ctx.fillText('No inflows found in the last 2 weeks', ctx.canvas.width / 2, ctx.canvas.height / 2);
                 return;
             }
 
             new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
-                    labels: inflows.map(inflow => inflow.date.toLocaleDateString()),
+                    labels: inflows.map(inflow => inflow.date),
                     datasets: [{
                         label: 'Inflow Amount (XTZ)',
                         data: inflows.map(inflow => inflow.amount),
-                        backgroundColor: '#00ff9d',
-                        borderColor: '#00cc7d',
-                        borderWidth: 1
+                        borderColor: '#00ff9d',
+                        backgroundColor: 'rgba(0, 255, 157, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#00ff9d',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         x: {
                             title: {

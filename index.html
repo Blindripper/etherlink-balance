@@ -59,7 +59,12 @@
             word-break: break-all;
             margin-bottom: 1.5rem;
         }
-        button {
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        button, .button {
             background-color: #00ff9d;
             color: #111111;
             border: none;
@@ -69,9 +74,19 @@
             border-radius: 50px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
         }
-        button:hover {
+        button:hover, .button:hover {
             background-color: #00cc7d;
+        }
+        .button-secondary {
+            background-color: transparent;
+            border: 2px solid #00ff9d;
+            color: #00ff9d;
+        }
+        .button-secondary:hover {
+            background-color: rgba(0, 255, 157, 0.1);
         }
         footer {
             margin-top: 2rem;
@@ -96,7 +111,11 @@
             <p class="balance-label">USD Value</p>
             <p id="balanceUSD" class="balance">Loading...</p>
         </div>
-        <button onclick="fetchBalanceAndConvert()">Refresh Balance</button>
+        <div class="button-container">
+            <button onclick="fetchBalanceAndConvert()">Refresh Balance</button>
+            <a href="https://www.etherlink.com/" target="_blank" class="button button-secondary">Etherlink</a>
+            <a href="https://bridge.etherlink.com/" target="_blank" class="button">Bridge</a>
+        </div>
         <footer>
             <p>View the <a href="https://github.com/yourusername/tezos-balance-tracker" target="_blank">source code on GitHub</a></p>
         </footer>

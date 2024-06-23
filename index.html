@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tezos Balance Tracker | Bridged to EtherLink</title>
-    <meta name="description" content="Track Tezos balance and USD value for a specific address, powered by EtherLink technology.">
-    <meta property="og:title" content="Tezos Balance Tracker">
-    <meta property="og:description" content="Track Tezos balance and USD value for a specific address, powered by EtherLink technology.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://yourusername.github.io/tezos-balance-tracker/">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         
@@ -28,10 +25,10 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
-            max-width: 400px;
+            max-width: 600px;
             width: 90%;
         }
-        h1 {
+        h1, h2 {
             color: #ffffff;
             margin-bottom: 1.5rem;
             font-weight: 700;
@@ -63,6 +60,7 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            margin-bottom: 1.5rem;
         }
         button, .button {
             background-color: #00ff9d;
@@ -88,14 +86,15 @@
         .button-secondary:hover {
             background-color: rgba(0, 255, 157, 0.1);
         }
-        footer {
-            margin-top: 2rem;
-            font-size: 0.8rem;
-            color: #666666;
+        .chart-container {
+            background-color: #222222;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
-        footer a {
-            color: #00ff9d;
-            text-decoration: none;
+        #error-message {
+            color: #ff4d4d;
+            margin-top: 1rem;
         }
     </style>
 </head>
@@ -116,22 +115,29 @@
             <a href="https://www.etherlink.com/" target="_blank" class="button button-secondary">Etherlink</a>
             <a href="https://bridge.etherlink.com/" target="_blank" class="button">Bridge</a>
         </div>
-        <footer>
-            <p>View the <a href="https://github.com/yourusername/tezos-balance-tracker" target="_blank">source code on GitHub</a></p>
-        </footer>
+        <h2>Last Inflows</h2>
+        <div class="chart-container">
+            <canvas id="inflowChart"></canvas>
+        </div>
+        <div id="error-message"></div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+
     <script>
         const accountAddress = 'KT1CeFqjJRJPNVvhvznQrWfHad2jCiDZ6Lyj';
         const tzktApiUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}`;
         const coingeckoApiUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=tezos&vs_currencies=usd';
+        const tzktTransactionsUrl = `https://api.tzkt.io/v1/accounts/${accountAddress}/operations?type=transaction&limit=10`;
 
         async function fetchBalanceAndConvert() {
             try {
-                const [balanceResponse, rateResponse] = await Promise.all([
+                console.log('Fetching data...');
+                const [balanceResponse, rateResponse, transactionsResponse] = await Promise.all([
                     axios.get(tzktApiUrl),
-                    axios.get(coingeckoApiUrl)
+                    axios.get(coingeckoApiUrl),
+                    axios.get(tzktTransactionsUrl)
                 ]);
+
+                console.log('Data fetched successfully');
 
                 const balanceInMutez = balanceResponse.data.balance;
                 const balanceInTez = balanceInMutez / 1000000; // Convert mutez to tez
@@ -140,15 +146,86 @@
 
                 document.getElementById('balanceXTZ').textContent = balanceInTez.toFixed(6) + ' XTZ';
                 document.getElementById('balanceUSD').textContent = '$' + balanceInUsd.toFixed(2);
+
+                // Process inflow data
+                const inflows = transactionsResponse.data
+                    .filter(tx => tx.amount > 0 && tx.target.address === accountAddress)
+                    .map(tx => ({
+                        date: new Date(tx.timestamp),
+                        amount: tx.amount / 1000000 // Convert mutez to XTZ
+                    }));
+
+                console.log('Inflows:', inflows);
+
+                createInflowChart(inflows);
             } catch (error) {
                 console.error('Error fetching data:', error);
                 document.getElementById('balanceXTZ').textContent = 'Error';
                 document.getElementById('balanceUSD').textContent = 'Error';
+                document.getElementById('error-message').textContent = 'Error fetching data. Please try again later.';
             }
         }
 
+        function createInflowChart(inflows) {
+            const ctx = document.getElementById('inflowChart').getContext('2d');
+            
+            if (inflows.length === 0) {
+                ctx.font = '16px Inter';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText('No recent inflows found', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: inflows.map(inflow => inflow.date.toLocaleDateString()),
+                    datasets: [{
+                        label: 'Inflow Amount (XTZ)',
+                        data: inflows.map(inflow => inflow.amount),
+                        backgroundColor: '#00ff9d',
+                        borderColor: '#00cc7d',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: '#ffffff'
+                            },
+                            ticks: {
+                                color: '#999999'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Amount (XTZ)',
+                                color: '#ffffff'
+                            },
+                            ticks: {
+                                color: '#999999'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         // Fetch balance and convert on page load
-        fetchBalanceAndConvert();
+        document.addEventListener('DOMContentLoaded', fetchBalanceAndConvert);
     </script>
 </body>
 </html>
